@@ -84,4 +84,5 @@ class ContainerSpec_CustomScope: QuickSpec {
 
 private class FakeStorage: InstanceStorage {
     var instance: Any?
+    var graphCompletedCalled: Bool = false
 }

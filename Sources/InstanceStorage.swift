@@ -5,6 +5,7 @@
 /// Storage provided by `ObjectScope`. It is used by `Container` to persist resolved instances.
 public protocol InstanceStorage: AnyObject {
     var instance: Any? { get set }
+    var graphCompletedCalled: Bool { get set }
     func graphResolutionCompleted()
     func instance(inGraph graph: GraphIdentifier) -> Any?
     func setInstance(_ instance: Any?, inGraph graph: GraphIdentifier)
@@ -20,11 +21,13 @@ extension InstanceStorage {
 public final class GraphStorage: InstanceStorage {
     private var instances = [GraphIdentifier: Weak<Any>]()
     public var instance: Any?
+    public var graphCompletedCalled = false
 
     public init() {}
 
     public func graphResolutionCompleted() {
         instance = nil
+        graphCompletedCalled = false
     }
 
     public func instance(inGraph graph: GraphIdentifier) -> Any? {
@@ -42,6 +45,7 @@ public final class GraphStorage: InstanceStorage {
 /// Persists stored instance until it is explicitly discarded.
 public final class PermanentStorage: InstanceStorage {
     public var instance: Any?
+    public var graphCompletedCalled: Bool = false
 
     public init() {}
 }
@@ -52,6 +56,7 @@ public final class TransientStorage: InstanceStorage {
         get { return nil }
         set {} // swiftlint:disable:this unused_setter_value
     }
+    public var graphCompletedCalled: Bool = false
 
     public init() {}
 }
@@ -60,6 +65,7 @@ public final class TransientStorage: InstanceStorage {
 /// Persists reference types as long as there are strong references to given instance.
 public final class WeakStorage: InstanceStorage {
     private var _instance = Weak<Any>()
+    public var graphCompletedCalled: Bool = false
 
     public var instance: Any? {
         get { return _instance.value }
@@ -84,6 +90,7 @@ public final class CompositeStorage: InstanceStorage {
         }
         set { components.forEach { $0.instance = newValue } }
     }
+    public var graphCompletedCalled: Bool = false
 
     public init(_ components: [InstanceStorage]) {
         self.components = components

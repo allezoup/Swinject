@@ -232,11 +232,15 @@ extension Container: _Resolver {
 
     fileprivate var maxResolutionDepth: Int { return 200 }
 
-    fileprivate func incrementResolutionDepth() {
-        parent?.incrementResolutionDepth()
+    fileprivate func createObjectGraphIfNecessary() {
         if resolutionDepth == 0, currentObjectGraph == nil {
             currentObjectGraph = GraphIdentifier()
         }
+    }
+
+    fileprivate func incrementResolutionDepth() {
+        parent?.incrementResolutionDepth()
+
         guard resolutionDepth < maxResolutionDepth else {
             fatalError("Infinite recursive call for circular dependency has been detected. " +
                 "To avoid the infinite call, 'initCompleted' handler should be used to inject circular dependency.")
@@ -253,6 +257,14 @@ extension Container: _Resolver {
     }
 
     fileprivate func graphResolutionCompleted() {
+        services.values.forEach {
+            if let completed = $0.graphCompleted as? (Resolver, Any) -> Void, !$0.storage.graphCompletedCalled,
+                let instance = $0.storage.instance {
+                $0.storage.graphCompletedCalled = true
+                completed(self, instance)
+            }
+        }
+
         services.values.forEach { $0.storage.graphResolutionCompleted() }
         currentObjectGraph = nil
     }
@@ -295,8 +307,7 @@ extension Container: Resolver {
         entry: ServiceEntryProtocol,
         invoker: (Factory) -> Any
     ) -> Service? {
-        incrementResolutionDepth()
-        defer { decrementResolutionDepth() }
+        createObjectGraphIfNecessary()
 
         guard let currentObjectGraph = currentObjectGraph else {
             fatalError("If accessing container from multiple threads, make sure to use a synchronized resolver.")
@@ -305,6 +316,9 @@ extension Container: Resolver {
         if let persistedInstance = persistedInstance(Service.self, from: entry, in: currentObjectGraph) {
             return persistedInstance
         }
+
+        incrementResolutionDepth()
+        defer { decrementResolutionDepth() }
 
         let resolvedInstance = invoker(entry.factory as! Factory)
         if let persistedInstance = persistedInstance(Service.self, from: entry, in: currentObjectGraph) {

@@ -117,6 +117,8 @@ private class StorageSpy: InstanceStorage {
     var getterGraphs = [GraphIdentifier]()
 
     var instance: Any?
+    var graphCompletedCalled: Bool = false
+
     func setInstance(_: Any?, inGraph graph: GraphIdentifier) {
         setterGraphs.append(graph)
     }

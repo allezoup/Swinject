@@ -11,6 +11,7 @@ internal protocol ServiceEntryProtocol: AnyObject {
     var storage: InstanceStorage { get }
     var factory: FunctionType { get }
     var initCompleted: (FunctionType)? { get }
+    var graphCompleted: (FunctionType)? { get }
     var serviceType: Any.Type { get }
 }
 
@@ -18,6 +19,8 @@ internal protocol ServiceEntryProtocol: AnyObject {
 /// As a returned instance from a `register` method of a `Container`, some configurations can be added.
 public final class ServiceEntry<Service>: ServiceEntryProtocol {
     fileprivate var initCompletedActions: [(Resolver, Service) -> Void] = []
+    fileprivate var graphCompletedActions: [(Resolver, Service) -> Void] = []
+
     internal let serviceType: Any.Type
     internal let argumentsType: Any.Type
 
@@ -35,6 +38,15 @@ public final class ServiceEntry<Service>: ServiceEntryProtocol {
         return { [weak self] (resolver: Resolver, service: Any) -> Void in
             guard let strongSelf = self else { return }
             strongSelf.initCompletedActions.forEach { $0(resolver, service as! Service) }
+        }
+    }
+
+    internal var graphCompleted: FunctionType? {
+        guard !graphCompletedActions.isEmpty else { return nil }
+
+        return { [weak self] (resolver: Resolver, service: Any) -> Void in
+            guard let strongSelf = self else { return }
+            strongSelf.graphCompletedActions.forEach { $0(resolver, service as! Service) }
         }
     }
 
@@ -87,6 +99,12 @@ public final class ServiceEntry<Service>: ServiceEntryProtocol {
     @discardableResult
     public func initCompleted(_ completed: @escaping (Resolver, Service) -> Void) -> Self {
         initCompletedActions.append(completed)
+        return self
+    }
+
+    @discardableResult
+    public func graphCompleted(_ completed: @escaping (Resolver, Service) -> Void) -> Self {
+        graphCompletedActions.append(completed)
         return self
     }
 
